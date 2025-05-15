@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List
 from recommendation_model import AnimeRecommendationModel
 import logging
+from fastapi.middleware.cors import CORSMiddleware
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -11,6 +12,14 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="Anime Recommendation API", description="Public API to recommend similar anime based on genre and rating")
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or set to ["http://localhost:5500"] if needed
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Global variable to hold the model
 model = None
 
