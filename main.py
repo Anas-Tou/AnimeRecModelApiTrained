@@ -4,6 +4,7 @@ from typing import List
 from recommendation_model import AnimeRecommendationModel
 import logging
 from fastapi.middleware.cors import CORSMiddleware
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -12,14 +13,14 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="Anime Recommendation API", description="Public API to recommend similar anime based on genre and rating")
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or set to ["http://localhost:5500"] if needed
+    allow_origins=["http://127.0.0.1:8070", "http://localhost:8070"],  # Specific origins for your client
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # Global variable to hold the model
 model = None
 
@@ -31,7 +32,7 @@ async def startup_event():
         model = AnimeRecommendationModel()
         logger.info("Model loaded successfully")
     except Exception as e:
-        logger.error(f"Failed to load model: {str(e)}")
+        logger.error(f"Failed to load model: {str(e)}\n{traceback.format_exc()}")
         raise
 
 # Define request models for input validation
@@ -63,8 +64,8 @@ async def recommend_similar_anime(
         result = recommendations.to_dict(orient="records")
         return {"recommendations": result}
     except Exception as e:
-        logger.error(f"Error in recommend_similar_anime: {e}")
-        return {"error": str(e)}
+        logger.error(f"Error in recommend_similar_anime: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Endpoint for user-based recommendations
 @app.post("/recommend/user")
@@ -75,7 +76,7 @@ async def recommend_by_user(request: UserRecommendationRequest):
     except KeyError:
         raise HTTPException(status_code=404, detail=f"User ID {request.user_id} not found")
     except Exception as e:
-        logger.error(f"Error in recommend_by_user: {e}")
+        logger.error(f"Error in recommend_by_user: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Endpoint for genre-based recommendations
@@ -89,11 +90,14 @@ async def recommend_by_genre(request: GenreRecommendationRequest):
             "popular": popular_df.to_dict(orient="records"),
             "relevant": relevant_df.to_dict(orient="records")
         }
-    except ValueError as e:
-        logger.error(f"ValueError in recommend_by_genre: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+    except MemoryError as me:
+        logger.error(f"MemoryError in recommend_by_genre: {str(me)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=507, detail="Server out of memory. Try reducing top_n or check system resources.")
+    except ValueError as ve:
+        logger.error(f"ValueError in recommend_by_genre: {str(ve)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logger.error(f"Error in recommend_by_genre: {e}")
+        logger.error(f"Error in recommend_by_genre: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Health check endpoint
