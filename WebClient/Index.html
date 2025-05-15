@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anime Recommendation Client</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React and ReactDOM CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // Error Boundary Component to catch rendering errors
+    class ErrorBoundary extends React.Component {
+      state = { hasError: false, error: null };
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="p-4 text-red-500">
+              <h1>Something went wrong:</h1>
+              <p>{this.state.error?.toString()}</p>
+              <p>Check the browser console for more details.</p>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    // Similar Anime Page Component
+    const SimilarAnimePage = ({ apiUrl }) => {
+      const [animeName, setAnimeName] = React.useState("");
+      const [topN, setTopN] = React.useState(5);
+      const [ratingThreshold, setRatingThreshold] = React.useState(6.0);
+      const [recommendations, setRecommendations] = React.useState([]);
+      const [images, setImages] = React.useState({});
+      const [loading, setLoading] = React.useState(false);
+
+      const fetchRecommendations = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch(`${apiUrl}/recommend_similar_anime/?anime_name=${encodeURIComponent(animeName)}&top_n=${topN}&rating_threshold=${ratingThreshold}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          if (data.recommendations) {
+            setRecommendations(data.recommendations);
+            await fetchImages(data.recommendations.map(r => r.name));
+          } else {
+            alert(data.message || "No recommendations found");
+          }
+        } catch (error) {
+          alert("Error fetching recommendations: " + error.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchImages = async (animeNames) => {
+        const newImages = {};
+        const geminiApiKey = "AIzaSyCZewPkqmp50tSkbILsju_Q_NAtnI9WE8s";
+        const customSearchApiKey = "AIzaSyCZewPkqmp50tSkbILsju_Q_NAtnI9WE8s";
+        const cx = "d7bfcbca9a1d0489f";
+
+        for (const name of animeNames) {
+          try {
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `Generate a search query to find official images of the anime "${name}".`
+                  }]
+                }]
+              })
+            });
+            const geminiData = await geminiResponse.json();
+            const searchQuery = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || `${name} anime official images`;
+
+            const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${customSearchApiKey}&cx=${cx}&q=${encodeURIComponent(searchQuery)}&searchType=image&num=1`);
+            const searchData = await searchResponse.json();
+            newImages[name] = searchData.items?.[0]?.link || "https://via.placeholder.com/150";
+          } catch (error) {
+            newImages[name] = "https://via.placeholder.com/150";
+            console.error(`Error fetching image for ${name}:`, error);
+          }
+        }
+        setImages(newImages);
+      };
+
+      return (
+        <div className="container mx-auto p-4">
+          <h1 className="text-2xl font-bold mb-4">Similar Anime Recommendations</h1>
+          <div className="mb-4">
+            <input
+              type="text"
+              value={animeName}
+              onChange={(e) => setAnimeName(e.target.value)}
+              placeholder="Enter anime name"
+              className="border p-2 rounded mr-2"
+            />
+            <input
+              type="number"
+              value={topN}
+              onChange={(e) => setTopN(Math.max(1, Math.min(20, e.target.value)))}
+              min="1"
+              max="20"
+              className="border p-2 rounded mr-2"
+            />
+            <input
+              type="number"
+              value={ratingThreshold}
+              onChange={(e) => setRatingThreshold(Math.max(0, Math.min(10, e.target.value)))}
+              min="0"
+              max="10"
+              step="0.1"
+              className="border p-2 rounded mr-2"
+            />
+            <button
+              onClick={fetchRecommendations}
+              className="bg-blue-500 text-white p-2 rounded"
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Get Recommendations"}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recommendations.map((rec, index) => (
+              <div key={index} className="border p-4 rounded shadow">
+                <img src={images[rec.name]} alt={rec.name} className="w-full h-48 object-cover mb-2" />
+                <h2 className="text-lg font-semibold">{rec.name}</h2>
+                <p className="text-gray-600">Genre: {rec.genre}</p>
+                <p className="text-gray-600">Rating: {rec.rating}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Genre Recommendation Page Component
+    const GenreRecommendationPage = ({ apiUrl }) => {
+      const [genres, setGenres] = React.useState(["Action"]);
+      const [typeAnime, setTypeAnime] = React.useState("all");
+      const [topN, setTopN] = React.useState(5);
+      const [recommendations, setRecommendations] = React.useState({ popular: [], relevant: [] });
+      const [images, setImages] = React.useState({});
+      const [loading, setLoading] = React.useState(false);
+
+      const fetchRecommendations = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch(`${apiUrl}/recommend/genre`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ genres, type_anime: typeAnime, top_n: topN })
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          setRecommendations(data);
+          const allNames = [...data.popular.map(r => r.name), ...data.relevant.map(r => r.name)];
+          await fetchImages(allNames);
+        } catch (error) {
+          alert("Error fetching recommendations: " + error.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchImages = async (animeNames) => {
+        const newImages = {};
+        const geminiApiKey = "AIzaSyCZewPkqmp50tSkbILsju_Q_NAtnI9WE8s";
+        const customSearchApiKey = "AIzaSyCZewPkqmp50tSkbILsju_Q_NAtnI9WE8s";
+        const cx = "d7bfcbca9a1d0489f";
+
+        for (const name of animeNames) {
+          try {
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `Generate a search query to find official images of the anime "${name}".`
+                  }]
+                }]
+              })
+            });
+            const geminiData = await geminiResponse.json();
+            const searchQuery = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || `${name} anime official images`;
+
+            const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${customSearchApiKey}&cx=${cx}&q=${encodeURIComponent(searchQuery)}&searchType=image&num=1`);
+            const searchData = await searchResponse.json();
+            newImages[name] = searchData.items?.[0]?.link || "https://via.placeholder.com/150";
+          } catch (error) {
+            newImages[name] = "https://via.placeholder.com/150";
+            console.error(`Error fetching image for ${name}:`, error);
+          }
+        }
+        setImages(newImages);
+      };
+
+      return (
+        <div className="container mx-auto p-4">
+          <h1 className="text-2xl font-bold mb-4">Genre-Based Recommendations</h1>
+          <div className="mb-4">
+            <input
+              type="text"
+              value={genres.join(", ")}
+              onChange={(e) => setGenres(e.target.value.split(",").map(g => g.trim()))}
+              placeholder="Enter genres (comma-separated)"
+              className="border p-2 rounded mr-2"
+            />
+            <select
+              value={typeAnime}
+              onChange={(e) => setTypeAnime(e.target.value)}
+              className="border p-2 rounded mr-2"
+            >
+              <option value="all">All</option>
+              <option value="TV">TV</option>
+              <option value="Movie">Movie</option>
+              <option value="OVA">OVA</option>
+            </select>
+            <input
+              type="number"
+              value={topN}
+              onChange={(e) => setTopN(Math.max(1, Math.min(20, e.target.value)))}
+              min="1"
+              max="20"
+              className="border p-2 rounded mr-2"
+            />
+            <button
+              onClick={fetchRecommendations}
+              className="bg-blue-500 text-white p-2 rounded"
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Get Recommendations"}
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold">Popular</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {recommendations.popular.map((rec, index) => (
+                  <div key={index} className="border p-4 rounded shadow">
+                    <img src={images[rec.name]} alt={rec.name} className="w-full h-48 object-cover mb-2" />
+                    <h3 className "text-lg font-semibold">{rec.name}</h3>
+                    <p className="text-gray-600">Genre: {rec.genre}</p>
+                    <p className="text-gray-600">Rating: {rec.rating}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Relevant</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {recommendations.relevant.map((rec, index) => (
+                  <div key={index} className="border p-4 rounded shadow">
+                    <img src={images[rec.name]} alt={rec.name} className="w-full h-48 object-cover mb-2" />
+                    <h3 className="text-lg font-semibold">{rec.name}</h3>
+                    <p className="text-gray-600">Genre: {rec.genre}</p>
+                    <p className="text-gray-600">Rating: {rec.rating}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App Component
+    const App = ({ apiUrl }) => {
+      const [page, setPage] = React.useState("similar");
+
+      return (
+        <div>
+          <nav className="bg-gray-800 text-white p-4">
+            <button
+              onClick={() => setPage("similar")}
+              className={`mr-4 ${page === "similar" ? "font-bold" : ""}`}
+            >
+              Similar Anime
+            </button>
+            <button
+              onClick={() => setPage("genre")}
+              className={page === "genre" ? "font-bold" : ""}
+            >
+              Genre Recommendations
+            </button>
+          </nav>
+          {page === "similar" ? <SimilarAnimePage apiUrl={apiUrl} /> : <GenreRecommendationPage apiUrl={apiUrl} />}
+        </div>
+      );
+    };
+
+    // Render the App with Error Boundary
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(
+      <ErrorBoundary>
+        <App apiUrl="http://127.0.0.1:8000" />
+      </ErrorBoundary>
+    );
+  </script>
+</body>
+</html>
