@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="Anime Recommendation API", description="Public API to recommend similar anime based on genre and rating")
 
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # Add your production frontend URL when deployed, e.g., "https://your-frontend.onrender.com"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:8070", "http://localhost:8070"],  # Specific origins for your client
