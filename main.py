@@ -50,6 +50,14 @@ class GenreRecommendationRequest(BaseModel):
     type_anime: str = "all"
     top_n: int = 5
 
+@app.get("/image")
+async def get_image(query: str):
+    apiKey = "YOUR_GOOGLE_API_KEY"
+    cseId = "YOUR_CSE_ID"
+    response = await fetch(
+        f"https://www.googleapis.com/customsearch/v1?key={apiKey}&cx={cseId}&q={query}&searchType=image&num=1"
+    )
+    return await response.json()
 # Root endpoint
 @app.get("/")
 async def root():
