@@ -49,15 +49,6 @@ class GenreRecommendationRequest(BaseModel):
     genres: List[str]
     type_anime: str = "all"
     top_n: int = 5
-
-@app.get("/image")
-async def get_image(query: str):
-    apiKey = "YOUR_GOOGLE_API_KEY"
-    cseId = "YOUR_CSE_ID"
-    response = await fetch(
-        f"https://www.googleapis.com/customsearch/v1?key={apiKey}&cx={cseId}&q={query}&searchType=image&num=1"
-    )
-    return await response.json()
 # Root endpoint
 @app.get("/")
 async def root():
@@ -67,7 +58,7 @@ async def root():
 @app.get("/recommend_similar_anime/")
 async def recommend_similar_anime(
     anime_name: str = Query(..., description="Name of the anime to find recommendations for"),
-    top_n: int = Query(5, ge=1, le=20, description="Number of recommendations to return"),
+    top_n: int = Query(5, ge=1, le=100, description="Number of recommendations to return"),
     rating_threshold: float = Query(6.0, ge=0.0, le=10.0, description="Minimum rating for recommended anime")
 ):
     try:
