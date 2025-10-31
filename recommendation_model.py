@@ -102,24 +102,29 @@ class AnimeRecommendationModel:
                 raise ValueError("DataFrame must contain 'name', 'genre', and 'rating' columns")
 
             # Normalize anime names for comparison
+            # NEW, IMPROVED FUNCTION
             def normalize_name(name):
                 if not isinstance(name, str):
                     return ""
-                # Remove special characters and normalize
-                name = (name.replace(' ', '')
-                        .replace(':', '')
-                        .replace('{', '')
-                        .replace('}', '')
-                        .replace(',', '')
-                        .replace('.', '')
-                        .replace(';', '')
-                        .replace('&', '')
-                        .replace('#', '')
-                        .replace("'", '')
-                        .replace("°", '')
-                        .lower()
-                        .strip())
-                return name
+                
+                # Replace all common special characters with a space
+                name = (name.replace(':', ' ')
+                        .replace('{', ' ')
+                        .replace('}', ' ')
+                        .replace(',', ' ')
+                        .replace('.', ' ')
+                        .replace(';', ' ')
+                        .replace('&', ' ')
+                        .replace('#', ' ')
+                        .replace("'", ' ')
+                        .replace("°", ' ')
+                        .replace("-", ' ')  # Also handle dashes
+                        .replace("_", ' ')  # And underscores
+                       )
+                
+                # Consolidate multiple spaces into one and strip
+                name = ' '.join(name.split())
+                return name.lower().strip()
 
             anime_df = self.anime_df.copy()
             anime_df['genre'] = anime_df['genre'].fillna('').astype(str)
@@ -128,7 +133,8 @@ class AnimeRecommendationModel:
 
             # Use fuzzy matching to find the closest match with higher confidence
             anime_names = anime_df['name_normalized'].tolist()
-            match = process.extractOne(normalized_input, anime_names, scorer=fuzz.token_sort_ratio)
+           # NEW, IMPROVED MATCHER
+            match = process.extractOne(normalized_input, anime_names, scorer=fuzz.token_set_ratio)
             if match is None or match[1] < 85:  # Increased to 85% for better accuracy
                 raise ValueError(f"Anime '{anime_name}' not found in the dataset with sufficient similarity")
 

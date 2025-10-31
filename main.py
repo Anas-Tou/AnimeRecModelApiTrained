@@ -13,14 +13,9 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="Anime Recommendation API", description="Public API to recommend similar anime based on genre and rating")
 
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # Add your production frontend URL when deployed, e.g., "https://your-frontend.onrender.com"
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Specific origins for your client
+    allow_origins=["http://127.0.0.1:8070", "http://localhost:8070"],  # Specific origins for your client
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +44,7 @@ class GenreRecommendationRequest(BaseModel):
     genres: List[str]
     type_anime: str = "all"
     top_n: int = 5
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -58,7 +54,7 @@ async def root():
 @app.get("/recommend_similar_anime/")
 async def recommend_similar_anime(
     anime_name: str = Query(..., description="Name of the anime to find recommendations for"),
-    top_n: int = Query(5, ge=1, le=100, description="Number of recommendations to return"),
+    top_n: int = Query(5, ge=1, le=200, description="Number of recommendations to return"),
     rating_threshold: float = Query(6.0, ge=0.0, le=10.0, description="Minimum rating for recommended anime")
 ):
     try:
@@ -71,7 +67,7 @@ async def recommend_similar_anime(
         logger.error(f"Error in recommend_similar_anime: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoint for user-based recommendations
+# Endpoint for user-based recommendations // Still under development
 @app.post("/recommend/user")
 async def recommend_by_user(request: UserRecommendationRequest):
     try:
