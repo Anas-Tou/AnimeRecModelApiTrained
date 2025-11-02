@@ -58,7 +58,7 @@ This application follows a modern, decoupled 3-tier architecture:
 **1. Clone the repository:**
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
+git clone https://github.com/Anas-Tou/AnimeRecModelApiTrained.git
 cd your-repo-name
 ```
 
