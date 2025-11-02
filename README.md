@@ -143,4 +143,3 @@ You can now use the application\!
 ├── requirements.txt        # Python dependencies
 └── README.md               # You are here!
 ```
-```
